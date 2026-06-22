@@ -1,0 +1,15 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go tool sqlc generate && go tool templ generate && yarn build && go build -o dist/wheel main.go"
+  entrypoint = "./dist/wheel"
+  include_ext = ["go", "templ", "ts", "css"]
+  exclude_dir = ["dist", "tmp", "node_modules", "frontend/dist", "frontend/.vite"]
+  exclude_regex = ["internal/db/.*\\.go", "internal/components/.*_templ\\.go"]
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

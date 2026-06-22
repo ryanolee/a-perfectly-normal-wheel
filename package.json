@@ -1,4 +1,21 @@
 {
   "name": "a-perfectly-normal-wheel",
-  "packageManager": "yarn@4.3.1"
+  "packageManager": "yarn@4.3.1",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "@rollup/plugin-inject": "^5.0.5",
+    "@types/node": "^26.0.0",
+    "sass": "^1.77.8",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.1",
+    "htmx.org": "^1",
+    "tailwindcss": "^4.3.1"
+  }
 }

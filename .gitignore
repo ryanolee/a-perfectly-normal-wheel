@@ -11,3 +11,14 @@
 
 #!.yarn/cache
 .pnp.*
+
+# Build output
+dist/
+tmp/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Db
+data.db

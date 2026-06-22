@@ -1,0 +1,11 @@
+
+@import "tailwindcss";
+@source "../../internal/**/*.templ";
+
+/* Fade-out transition for remove-me elements */
+[remove-me] {
+  transition: opacity 300ms ease-out;
+}
+.htmx-removing {
+  opacity: 0;
+}

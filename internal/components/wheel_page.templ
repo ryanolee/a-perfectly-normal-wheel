@@ -1,0 +1,67 @@
+package components
+
+import (
+  "fmt"
+  "github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
+)
+
+templ CandidateListItem(candidate services.Candidate, currentUserId string) {
+  <li class="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+    <span class="w-8 h-8 rounded-full bg-violet-900 flex items-center justify-center text-sm font-bold text-violet-300 shrink-0">
+      { string([]rune(candidate.Username)[:1]) }
+    </span>
+    <span class="text-gray-200">{ candidate.Username }</span>
+    if candidate.CreatorID == currentUserId {
+      <span class="ml-1 text-xs text-violet-400 font-medium">(you)</span>
+    }
+  </li>
+}
+
+templ CandidateSubmissionForm(wheelID int64, errorMessage string) {
+  <form hx-post={ templ.SafeURL(fmt.Sprintf("/wheel/%d", wheelID)) } class="mt-6" hx-target="this" hx-swap="outerHTML" hx-preserve-id="usernameId">
+    if errorMessage != "" {
+      <div class="flex items-center gap-2 bg-red-900/50 border border-red-800 rounded-lg px-4 py-2 mb-3">
+        <svg class="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        <p class="text-red-300 text-sm">{ errorMessage }</p>
+      </div>
+    }
+    <div class="flex gap-3">
+      <input type="text" name="username" id="usernameId" placeholder="Enter your name to join..." autocomplete="off" required class="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-600"/>
+      <button type="submit" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors">
+        Join
+      </button>
+    </div>
+  </form>
+}
+
+
+templ CandidateList(wheelId int64,candidates []services.Candidate, currentUserId string) {
+  <div sse-connect={ templ.SafeURL(fmt.Sprintf("/wheel/%d/events", wheelId)) }>
+    <h2 class="text-lg font-semibold text-gray-200 mb-4">
+      Participants
+      <span class="ml-2 text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(candidates)) })</span>
+    </h2>
+    if len(candidates) == 0 {
+      <p class="text-gray-500 italic">No participants yet.</p>
+    }
+    <ul class="space-y-2" sse-swap="NewCandidateAddedToWheelEvent" hx-swap="beforeend">
+      for _, candidate := range candidates {
+        @CandidateListItem(candidate, currentUserId)
+      }
+    </ul>
+  </div>
+}
+
+templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Candidate, currentUserId string, renderSubmissionForm bool) {
+  @Page(wheel.Name, viteTags) {
+    <div class="mb-8">
+      <a href="/" class="text-sm text-violet-400 hover:text-violet-300 transition-colors mb-4 inline-block">← Back to wheels</a>
+      <h1 class="text-3xl font-bold text-white mb-2">{ wheel.Name }</h1>
+      <p class="text-gray-400">{ wheel.Description }</p>
+    </div>
+    @CandidateList(wheel.ID, candidates, currentUserId)
+    if renderSubmissionForm {
+      @CandidateSubmissionForm(wheel.ID, "")
+    }
+  }
+}
