@@ -17,3 +17,4 @@ db_migrate:
 
 db_seed:
 	go run ./cmd/db seed --db data.db
+

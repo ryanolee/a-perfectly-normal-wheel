@@ -1,23 +1,16 @@
-package main
+package cmd
 
 import (
 	"database/sql"
 	"fmt"
-	"os"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "db",
 	Short: "Database management commands",
-}
-
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
 }
 
 func openDB(path string) (*sql.DB, error) {

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -30,5 +30,5 @@ var migrateCmd = &cobra.Command{
 
 func init() {
 	migrateCmd.Flags().StringVar(&migrateDBPath, "db", "data.db", "path to the SQLite database file")
-	rootCmd.AddCommand(migrateCmd)
+	RootCmd.AddCommand(migrateCmd)
 }

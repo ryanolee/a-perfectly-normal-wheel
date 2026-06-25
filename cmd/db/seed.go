@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -30,5 +30,5 @@ var seedCmd = &cobra.Command{
 
 func init() {
 	seedCmd.Flags().StringVar(&seedDBPath, "db", "data.db", "path to the SQLite database file")
-	rootCmd.AddCommand(seedCmd)
+	RootCmd.AddCommand(seedCmd)
 }

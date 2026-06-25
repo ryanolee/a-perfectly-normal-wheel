@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/http"
 
+	dbcmd "github.com/ryanolee/a-perfectly-normal-wheel/cmd/db"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/db"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/handlers"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/logging"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/middleware"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/server"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +23,7 @@ var distFS embed.FS
 //go:embed all:frontend/img
 var imgFS embed.FS
 
-func main() {
+func startServer() {
 	// Logger
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -69,5 +71,20 @@ func main() {
 	if err := http.ListenAndServe(":8080", serverMux); err != nil {
 		logger.Fatal("failed to start server", zap.Error(err))
 	}
+}
 
+var startCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Start the web server",
+	Run: func(cmd *cobra.Command, args []string) {
+		startServer()
+	},
+}
+
+func main() {
+	dbcmd.RootCmd.AddCommand(startCmd)
+
+	if err := dbcmd.RootCmd.Execute(); err != nil {
+		log.Fatal(err)
+	}
 }
