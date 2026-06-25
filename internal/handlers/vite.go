@@ -8,11 +8,11 @@ type (
 	}
 )
 
-func NewViteHandler(viteService ViteService) (http.Handler, error) {
+func NewViteHandler(viteService ViteService) http.Handler {
 
 	return &ViteHandler{
 		inner: http.FileServer(http.FS(viteService.AssetsFS())),
-	}, nil
+	}
 }
 
 func (h *ViteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

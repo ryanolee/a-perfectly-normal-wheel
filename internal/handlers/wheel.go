@@ -23,14 +23,14 @@ type (
 	}
 )
 
-func NewWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService, sessionService SessionService, logger *zap.Logger) (http.Handler, error) {
+func NewWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService, sessionService SessionService, logger *zap.Logger) http.Handler {
 	return &WheelHandler{
 		viteService:      viteService,
 		wheelService:     wheelService,
 		candidateService: candidateService,
 		sessionService:   sessionService,
 		logger:           logger,
-	}, nil
+	}
 }
 
 func (h *WheelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +84,13 @@ func (h *WheelHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	wheels, err := h.wheelService.CountWheels(r.Context())
+	if err != nil {
+		logger.Error("Failed to count wheels")
+		http.Error(w, "Failed to count wheels", http.StatusInternalServerError)
+		return
+	}
+
 	candidates, err := h.candidateService.ListCandidatesByWheel(r.Context(), wheel.ID)
 	if err != nil {
 		logger.Error("Failed to list candidates", zap.Int64("wheel_id", id), zap.Error(err))
@@ -93,11 +100,18 @@ func (h *WheelHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sessionId, _ := h.sessionService.GetSessionIdFromContext(r.Context())
 
+	var winner *services.Candidate
+	if wheel.WinnerID != nil {
+		winner = services.GetCandidateFromListById(*wheel.WinnerID, candidates)
+	}
+
 	h.View(w, r, WheelPageViewProps{
 		wheel:                *wheel,
 		candidates:           candidates,
 		sessionId:            sessionId,
+		winner:               winner,
 		renderSubmissionForm: !h.candidateService.CandidateInCandidateList(sessionId, candidates),
+		renderBackButton:     wheels > 1,
 	})
 }
 
@@ -105,9 +119,11 @@ type WheelPageViewProps struct {
 	wheel                services.Wheel
 	candidates           []services.Candidate
 	sessionId            string
+	winner               *services.Candidate
 	renderSubmissionForm bool
+	renderBackButton     bool
 }
 
 func (h *WheelHandler) View(w http.ResponseWriter, r *http.Request, props WheelPageViewProps) {
-	components.WheelPage(h.viteService.Tags(), props.wheel, props.candidates, props.sessionId, props.renderSubmissionForm).Render(r.Context(), w)
+	components.WheelPage(h.viteService.Tags(), props.wheel, props.candidates, props.sessionId, props.winner, props.renderSubmissionForm, props.renderBackButton).Render(r.Context(), w)
 }

@@ -91,6 +91,7 @@ func (s *SessionService) SetSessionId(w http.ResponseWriter, r *http.Request, se
 	http.SetCookie(w, &http.Cookie{
 		Name:  SessionCookieName,
 		Value: tokenString,
+		Path:  "/",
 	})
 
 	return nil

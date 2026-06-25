@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addCandidateToWheel = `-- name: AddCandidateToWheel :exec
@@ -24,6 +25,71 @@ func (q *Queries) AddCandidateToWheel(ctx context.Context, arg AddCandidateToWhe
 	return err
 }
 
+const countWheels = `-- name: CountWheels :one
+SELECT COUNT(*) FROM wheels
+`
+
+func (q *Queries) CountWheels(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countWheels)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createWheel = `-- name: CreateWheel :execlastid
+INSERT INTO wheels (name, description) VALUES (?, ?)
+`
+
+type CreateWheelParams struct {
+	Name        string
+	Description sql.NullString
+}
+
+func (q *Queries) CreateWheel(ctx context.Context, arg CreateWheelParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, createWheel, arg.Name, arg.Description)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+const declareWinnerForWheel = `-- name: DeclareWinnerForWheel :exec
+UPDATE wheels SET winner_id = ?, status = 'winner_declared' WHERE id = ?
+`
+
+type DeclareWinnerForWheelParams struct {
+	WinnerID sql.NullInt64
+	ID       int64
+}
+
+func (q *Queries) DeclareWinnerForWheel(ctx context.Context, arg DeclareWinnerForWheelParams) error {
+	_, err := q.db.ExecContext(ctx, declareWinnerForWheel, arg.WinnerID, arg.ID)
+	return err
+}
+
+const deleteCandidateById = `-- name: DeleteCandidateById :exec
+DELETE FROM candidates WHERE id = ? AND wheel_id = ?
+`
+
+type DeleteCandidateByIdParams struct {
+	ID      int64
+	WheelID int64
+}
+
+func (q *Queries) DeleteCandidateById(ctx context.Context, arg DeleteCandidateByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCandidateById, arg.ID, arg.WheelID)
+	return err
+}
+
+const deleteWheelByID = `-- name: DeleteWheelByID :exec
+DELETE FROM wheels WHERE id = ?
+`
+
+func (q *Queries) DeleteWheelByID(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteWheelByID, id)
+	return err
+}
+
 const getCandidateByCreatorIdAndWheelId = `-- name: GetCandidateByCreatorIdAndWheelId :one
 SELECT id, username, wheel_id, creator_id, created_at FROM candidates WHERE creator_id = ? AND wheel_id = ?
 `
@@ -35,6 +101,28 @@ type GetCandidateByCreatorIdAndWheelIdParams struct {
 
 func (q *Queries) GetCandidateByCreatorIdAndWheelId(ctx context.Context, arg GetCandidateByCreatorIdAndWheelIdParams) (Candidate, error) {
 	row := q.db.QueryRowContext(ctx, getCandidateByCreatorIdAndWheelId, arg.CreatorID, arg.WheelID)
+	var i Candidate
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.WheelID,
+		&i.CreatorID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getCandidateById = `-- name: GetCandidateById :one
+SELECT id, username, wheel_id, creator_id, created_at FROM candidates WHERE id = ? AND wheel_id = ?
+`
+
+type GetCandidateByIdParams struct {
+	ID      int64
+	WheelID int64
+}
+
+func (q *Queries) GetCandidateById(ctx context.Context, arg GetCandidateByIdParams) (Candidate, error) {
+	row := q.db.QueryRowContext(ctx, getCandidateById, arg.ID, arg.WheelID)
 	var i Candidate
 	err := row.Scan(
 		&i.ID,
@@ -92,7 +180,7 @@ func (q *Queries) GetDuplicateCandidatesForWheel(ctx context.Context, arg GetDup
 }
 
 const getWheelByID = `-- name: GetWheelByID :one
-SELECT id, name, description, created_at, winner_id FROM wheels WHERE id = ?
+SELECT id, name, description, status, created_at, winner_id FROM wheels WHERE id = ?
 `
 
 func (q *Queries) GetWheelByID(ctx context.Context, id int64) (Wheel, error) {
@@ -102,6 +190,7 @@ func (q *Queries) GetWheelByID(ctx context.Context, id int64) (Wheel, error) {
 		&i.ID,
 		&i.Name,
 		&i.Description,
+		&i.Status,
 		&i.CreatedAt,
 		&i.WinnerID,
 	)
@@ -142,7 +231,7 @@ func (q *Queries) ListCandidatesByWheel(ctx context.Context, wheelID int64) ([]C
 }
 
 const listWheels = `-- name: ListWheels :many
-SELECT id, name, description, created_at, winner_id FROM wheels
+SELECT id, name, description, status, created_at, winner_id FROM wheels
 `
 
 func (q *Queries) ListWheels(ctx context.Context) ([]Wheel, error) {
@@ -158,6 +247,7 @@ func (q *Queries) ListWheels(ctx context.Context) ([]Wheel, error) {
 			&i.ID,
 			&i.Name,
 			&i.Description,
+			&i.Status,
 			&i.CreatedAt,
 			&i.WinnerID,
 		); err != nil {
@@ -172,4 +262,18 @@ func (q *Queries) ListWheels(ctx context.Context) ([]Wheel, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setWheelStatus = `-- name: SetWheelStatus :exec
+UPDATE wheels SET status = ? WHERE id = ?
+`
+
+type SetWheelStatusParams struct {
+	Status string
+	ID     int64
+}
+
+func (q *Queries) SetWheelStatus(ctx context.Context, arg SetWheelStatusParams) error {
+	_, err := q.db.ExecContext(ctx, setWheelStatus, arg.Status, arg.ID)
+	return err
 }

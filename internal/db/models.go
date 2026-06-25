@@ -20,6 +20,7 @@ type Wheel struct {
 	ID          int64
 	Name        string
 	Description sql.NullString
+	Status      string
 	CreatedAt   sql.NullTime
 	WinnerID    sql.NullInt64
 }

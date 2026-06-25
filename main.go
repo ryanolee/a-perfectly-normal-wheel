@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -17,6 +18,9 @@ import (
 //go:embed all:frontend/dist
 var distFS embed.FS
 
+//go:embed all:frontend/img
+var imgFS embed.FS
+
 func main() {
 	// Logger
 	logger, err := zap.NewProduction()
@@ -30,59 +34,36 @@ func main() {
 	dbConfig := db.DBConfig{
 		FilePath: "data.db",
 	}
-
-	dbConnection, err := db.NewDBConnection(dbConfig)
-	if err != nil {
-		logger.Fatal("failed to create database connection", zap.Error(err))
-	}
+	dbConnection := db.NewDBConnection(dbConfig)
 
 	// Services
-	viteService, err := services.NewViteService(&distFS, logger)
-	if err != nil {
-		logger.Fatal("failed to create Vite service", zap.Error(err))
-	}
-
-	wheelService := services.NewWheelService(dbConnection)
-	if wheelService == nil {
-		logger.Fatal("failed to create wheel service")
-	}
-
+	viteService := services.NewViteService(&distFS, logger)
 	wheelEventsService := services.NewWheelEventsService(logger, watermillLogger)
-
+	wheelService := services.NewWheelService(dbConnection, wheelEventsService)
 	sessionService := services.NewSessionService("your-secret-key")
-
-	candidateService := services.NewCandidateService(dbConnection, wheelEventsService, sessionService)
-	if candidateService == nil {
-		logger.Fatal("failed to create candidate service")
-	}
+	candidateService := services.NewCandidateService(dbConnection, wheelService, wheelEventsService, sessionService)
 
 	// HTTP Handlers
-	homeHandler, err := handlers.NewHomeHandler(viteService, wheelService)
+	homeHandler := handlers.NewHomeHandler(viteService, wheelService, logger)
+	viteHandler := handlers.NewViteHandler(viteService)
+	imgFs, err := fs.Sub(&imgFS, "frontend")
 	if err != nil {
-		logger.Fatal("failed to create home handler: %v", zap.Error(err))
+		log.Fatalf("failed to sub img fs: %v", err)
 	}
-
-	viteHandler, err := handlers.NewViteHandler(viteService)
-	if err != nil {
-		logger.Fatal("failed to create Vite handler: %v", zap.Error(err))
-	}
-
-	wheelHandler, err := handlers.NewWheelHandler(viteService, wheelService, candidateService, sessionService, logger)
-	if err != nil {
-		logger.Fatal("failed to create wheel handler: %v", zap.Error(err))
-	}
-
-	wheelEventsHandler := handlers.NewWheelEventsHandler(wheelService, wheelEventsService, sessionService, logger)
-	if err != nil {
-		logger.Fatal("failed to create wheel events handler: %v", zap.Error(err))
-	}
+	imgHandler := http.FileServer(http.FS(imgFs))
+	wheelHandler := handlers.NewWheelHandler(viteService, wheelService, candidateService, sessionService, logger)
+	wheelEventsHandler := handlers.NewWheelEventsHandler(wheelService, wheelEventsService, sessionService, candidateService, logger)
+	adminHandler := handlers.NewAdminHandler(viteService, wheelService)
+	adminWheelHandler := handlers.NewAdminWheelHandler(viteService, wheelService, candidateService)
+	adminApiHandler := handlers.NewAdminApiHandler(wheelService, candidateService, wheelEventsService, logger)
 
 	// Server
-	serverMux := server.NewServerMux(logger, homeHandler, viteHandler, wheelHandler, wheelEventsHandler)
+	serverMux := server.NewServerMux(logger, homeHandler, viteHandler, imgHandler, wheelHandler, wheelEventsHandler, adminHandler, adminWheelHandler, adminApiHandler)
 
 	// Middleware
-	serverMux = middleware.LogRequests(logger, serverMux)
+	serverMux = middleware.LogRequests(serverMux, logger)
 	serverMux = middleware.SessionMiddleware(serverMux, sessionService, logger)
+	serverMux = middleware.BasicAuthMiddleware(serverMux, "admin", "password")
 
 	log.Println("listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", serverMux); err != nil {

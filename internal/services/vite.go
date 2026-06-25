@@ -14,7 +14,7 @@ type ViteService struct {
 	fs   fs.FS
 }
 
-func NewViteService(distFs *embed.FS, logger *zap.Logger) (*ViteService, error) {
+func NewViteService(distFs *embed.FS, logger *zap.Logger) *ViteService {
 	dist, err := fs.Sub(distFs, "frontend/dist")
 	if err != nil {
 		log.Fatal(err)
@@ -25,13 +25,12 @@ func NewViteService(distFs *embed.FS, logger *zap.Logger) (*ViteService, error) 
 		ViteEntry: "main.ts",
 	})
 	if err != nil {
-		logger.Error("failed to create Vite HTML fragment", zap.Error(err))
-		return nil, err
+		logger.Fatal("failed to create Vite HTML fragment", zap.Error(err))
 	}
 	return &ViteService{
 		tags: string(fragment.Tags),
 		fs:   dist,
-	}, nil
+	}
 }
 
 func (s *ViteService) Tags() string {

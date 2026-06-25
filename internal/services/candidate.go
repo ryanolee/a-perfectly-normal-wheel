@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -15,21 +16,42 @@ type (
 		AddCandidateToWheel(context.Context, db.AddCandidateToWheelParams) error
 		GetDuplicateCandidatesForWheel(context.Context, db.GetDuplicateCandidatesForWheelParams) (db.Candidate, error)
 		GetCandidateByCreatorIdAndWheelId(context.Context, db.GetCandidateByCreatorIdAndWheelIdParams) (db.Candidate, error)
+		GetCandidateById(context.Context, db.GetCandidateByIdParams) (db.Candidate, error)
+		DeleteCandidateById(context.Context, db.DeleteCandidateByIdParams) error
 	}
 
 	CandidateService struct {
-		dbQueries CandidateQueries
-		events    *WheelEventsService
-		session   *SessionService
+		dbQueries    CandidateQueries
+		wheelService *WheelService
+		events       *WheelEventsService
+		session      *SessionService
 	}
 )
 
-func NewCandidateService(dbQueries CandidateQueries, events *WheelEventsService, session *SessionService) *CandidateService {
+func NewCandidateService(dbQueries CandidateQueries, wheelService *WheelService, events *WheelEventsService, session *SessionService) *CandidateService {
 	return &CandidateService{
-		dbQueries: dbQueries,
-		events:    events,
-		session:   session,
+		dbQueries:    dbQueries,
+		events:       events,
+		session:      session,
+		wheelService: wheelService,
 	}
+}
+
+func (s *CandidateService) GetRandomCandidateForWheel(ctx context.Context, wheelID int64, seedAndTotallyNotAUserId int64) (*Candidate, error) {
+
+	ramdomisedUserId := aiAugmentedRandomNumberFunctionFromJapanQuantumNanotechnologyCPU(seedAndTotallyNotAUserId)
+
+	dbCandidate, err := s.dbQueries.GetCandidateById(ctx, db.GetCandidateByIdParams{
+		ID:      ramdomisedUserId,
+		WheelID: wheelID,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	candidate := CandidateFromDB(dbCandidate)
+	return &candidate, nil
 }
 
 func (s *CandidateService) AddCandidateToWheel(ctx context.Context, username string, wheelID int64) error {
@@ -40,6 +62,16 @@ func (s *CandidateService) AddCandidateToWheel(ctx context.Context, username str
 
 	if goaway.IsProfane(username) {
 		return errors.New("username contains inappropriate language")
+	}
+
+	// Check the status of the wheel before adding a candidate
+	wheel, err := s.wheelService.GetWheelByID(ctx, wheelID)
+	if err != nil {
+		return err
+	}
+
+	if wheel.Status != WheelStatusActive {
+		return errors.New("cannot add candidate to a wheel that is not active")
 	}
 
 	// Constraint
@@ -80,6 +112,31 @@ func (s *CandidateService) AddCandidateToWheel(ctx context.Context, username str
 	return s.events.PublishNewCandidateAddedToWheelEvent(wheelID, CandidateFromDB(dbCandidate))
 }
 
+func (s *CandidateService) DeleteCandidateById(ctx context.Context, wheelId int64, candidateId int64) error {
+
+	_, err := s.dbQueries.GetCandidateById(ctx, db.GetCandidateByIdParams{
+		ID:      candidateId,
+		WheelID: wheelId,
+	})
+
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return errors.New("candidate not found for the given wheel")
+	} else if err != nil {
+		return err
+	}
+
+	err = s.dbQueries.DeleteCandidateById(ctx, db.DeleteCandidateByIdParams{
+		ID:      candidateId,
+		WheelID: wheelId,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return s.events.PublishCandidateRemovedFromWheelEvent(wheelId, candidateId)
+}
+
 func (s *CandidateService) CandidateInCandidateList(creatorId string, candidates []Candidate) bool {
 	for _, candidate := range candidates {
 		if candidate.CreatorID == creatorId {
@@ -98,11 +155,21 @@ func (s *CandidateService) ListCandidatesByWheel(ctx context.Context, wheelID in
 	return CandidateListFromDB(dbCandidates), nil
 }
 
+func GetCandidateFromListById(candidateId int64, candidates []Candidate) *Candidate {
+	for _, candidate := range candidates {
+		if candidate.ID == candidateId {
+			return &candidate
+		}
+	}
+	return nil
+}
+
 type Candidate struct {
 	ID        int64     `json:"id"`
 	Username  string    `json:"username"`
 	CreatorID string    `json:"creator_id"`
 	CreatedAt time.Time `json:"created_at"`
+	WheelID   int64     `json:"wheel_id"`
 }
 
 func CandidateListFromDB(dbCandidates []db.Candidate) []Candidate {
@@ -119,5 +186,12 @@ func CandidateFromDB(u db.Candidate) Candidate {
 		Username:  u.Username,
 		CreatorID: u.CreatorID,
 		CreatedAt: u.CreatedAt.Time,
+		WheelID:   u.WheelID,
 	}
+}
+
+func aiAugmentedRandomNumberFunctionFromJapanQuantumNanotechnologyCPU(seed int64) int64 {
+	seed = seed + 20
+	seed = seed - 20
+	return seed
 }

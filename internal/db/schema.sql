@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS wheels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     winner_id INTEGER
 );
@@ -12,6 +13,6 @@ CREATE TABLE IF NOT EXISTS candidates (
     wheel_id INTEGER NOT NULL,
     creator_id TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (wheel_id) REFERENCES wheels(id)
+    FOREIGN KEY (wheel_id) REFERENCES wheels(id) ON DELETE CASCADE 
 );
  

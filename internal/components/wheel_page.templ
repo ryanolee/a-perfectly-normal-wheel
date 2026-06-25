@@ -6,7 +6,11 @@ import (
 )
 
 templ CandidateListItem(candidate services.Candidate, currentUserId string) {
-  <li class="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+  <li 
+    class="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
+    sse-swap={ fmt.Sprintf("CandidateRemovedFromWheelEvent:%d", candidate.ID) }
+    hx-swap="delete" 
+  >
     <span class="w-8 h-8 rounded-full bg-violet-900 flex items-center justify-center text-sm font-bold text-violet-300 shrink-0">
       { string([]rune(candidate.Username)[:1]) }
     </span>
@@ -18,7 +22,13 @@ templ CandidateListItem(candidate services.Candidate, currentUserId string) {
 }
 
 templ CandidateSubmissionForm(wheelID int64, errorMessage string) {
-  <form hx-post={ templ.SafeURL(fmt.Sprintf("/wheel/%d", wheelID)) } class="mt-6" hx-target="this" hx-swap="outerHTML" hx-preserve-id="usernameId">
+  <form 
+    hx-post={ templ.SafeURL(fmt.Sprintf("/wheel/%d", wheelID)) } 
+    hx-swap="outerHTML"
+    hx-preserve-id="usernameId"
+    sse-swap="WheelStatusChangedEvent"
+    class="mt-6" hx-target="this"
+  >
     if errorMessage != "" {
       <div class="flex items-center gap-2 bg-red-900/50 border border-red-800 rounded-lg px-4 py-2 mb-3">
         <svg class="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
@@ -35,33 +45,88 @@ templ CandidateSubmissionForm(wheelID int64, errorMessage string) {
 }
 
 
-templ CandidateList(wheelId int64,candidates []services.Candidate, currentUserId string) {
-  <div sse-connect={ templ.SafeURL(fmt.Sprintf("/wheel/%d/events", wheelId)) }>
-    <h2 class="text-lg font-semibold text-gray-200 mb-4">
-      Participants
-      <span class="ml-2 text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(candidates)) })</span>
-    </h2>
-    if len(candidates) == 0 {
-      <p class="text-gray-500 italic">No participants yet.</p>
-    }
-    <ul class="space-y-2" sse-swap="NewCandidateAddedToWheelEvent" hx-swap="beforeend">
-      for _, candidate := range candidates {
-        @CandidateListItem(candidate, currentUserId)
-      }
-    </ul>
+templ WheelLockedNotice() {
+  <div 
+    class="mt-6 flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
+    hx-swap="outerHTML"
+    sse-swap="WheelStatusChangedEvent"
+  >
+    <svg class="w-5 h-5 text-gray-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+    <p class="text-gray-400 text-sm">Submissions are closed. This wheel is locked.</p>
   </div>
 }
 
-templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Candidate, currentUserId string, renderSubmissionForm bool) {
-  @Page(wheel.Name, viteTags) {
-    <div class="mb-8">
-      <a href="/" class="text-sm text-violet-400 hover:text-violet-300 transition-colors mb-4 inline-block">← Back to wheels</a>
-      <h1 class="text-3xl font-bold text-white mb-2">{ wheel.Name }</h1>
-      <p class="text-gray-400">{ wheel.Description }</p>
-    </div>
-    @CandidateList(wheel.ID, candidates, currentUserId)
-    if renderSubmissionForm {
-      @CandidateSubmissionForm(wheel.ID, "")
-    }
+templ WheelStatusStub() {
+  <div 
+    class="mt-6 flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
+    hx-swap="outerHTML"
+    sse-swap="WheelStatusChangedEvent"
+  >
+    <p class="text-gray-400 text-sm">Waiting on others to join...</p>
+  </div>  
+}
+
+templ CandidateList(candidates []services.Candidate, currentUserId string) {
+  <h2 class="text-lg font-semibold text-gray-200 mb-4">
+    Participants
+  </h2>
+  if len(candidates) == 0 {
+    <p 
+      class="text-gray-500 italic"
+      hx-swap="delete"
+      sse-swap="NewCandidateAddedToWheelEvent"
+    >No participants yet.
+    </p>
   }
+  <ul class="space-y-2" sse-swap="NewCandidateAddedToWheelEvent" hx-swap="beforeend">
+    for _, candidate := range candidates {
+      @CandidateListItem(candidate, currentUserId)
+    }
+  </ul>
+}
+
+templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Candidate, currentUserId string, winner *services.Candidate, renderSubmissionForm bool, renderBackButton bool) {
+  @PageLayout(wheel.Name, viteTags) {
+    <div sse-connect={ templ.SafeURL(fmt.Sprintf("/api/wheel/%d/events", wheel.ID)) } sse-swap={fmt.Sprintf("%s:%d,%s", services.WheelDeletedEventType, wheel.ID, services.WinnerDeclaredEventType)} hx-swap="outerHTML">
+      <div class="mb-8">
+        if renderBackButton {
+          <a href="/" class="text-sm text-violet-400 hover:text-violet-300 transition-colors mb-4 inline-block">← Back to wheels</a>
+        }
+        <h1 class="text-3xl font-bold text-white mb-2">{ wheel.Name }</h1>
+        <p class="text-gray-400">{ wheel.Description }</p>
+      </div>
+
+      if winner != nil {
+        @WinnerDeclaredNotice(*winner)
+      } else {
+        @CandidateList(candidates, currentUserId)
+
+        // Winner event spins the wheel in here; the spin reloads the page, which then lands on the declaration below.
+        <div hx-swap="innerHTML">
+          if wheel.Status != services.WheelStatusActive {
+            @WheelLockedNotice()
+          } else if renderSubmissionForm {
+            @CandidateSubmissionForm(wheel.ID, "")
+          } else {
+            @WheelStatusStub()
+          }
+        </div>
+      }
+    </div>
+  }
+}
+
+templ WinnerDeclaredNotice(winner services.Candidate) {
+  <div class="flex flex-col items-center gap-6 rounded-2xl px-12 py-14 bg-gradient-to-br from-amber-500/15 to-yellow-500/15 border border-amber-400/60 shadow-2xl shadow-amber-500/20 w-full text-center">
+    <svg class="w-20 h-20 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 4.5L12 4l3.5 5.5L21 5l-2 11H5zm0 3h14a1 1 0 010 2H5a1 1 0 010-2z"/></svg>
+    <div>
+      <p class="text-amber-300/80 text-xl mb-2">The winner is</p>
+      <p class="font-bold text-amber-100 text-5xl">{ winner.Username }</p>
+    </div>w
+  </div>
+}
+
+templ SpinningWheel(candidateNames []string, winner string) {
+  @templ.JSFuncCall("spinWheel", candidateNames, winner)
+  <div id="wheelContainer" class="fixed inset-0 z-0"></div>
 }

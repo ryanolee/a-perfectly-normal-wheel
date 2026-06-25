@@ -6,20 +6,23 @@ import (
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
+	"go.uber.org/zap"
 )
 
 type (
 	HomeHandler struct {
 		wheelService WheelService
 		viteService  ViteService
+		logger       *zap.Logger
 	}
 )
 
-func NewHomeHandler(viteService ViteService, wheelService WheelService) (http.Handler, error) {
+func NewHomeHandler(viteService ViteService, wheelService WheelService, logger *zap.Logger) http.Handler {
 	return &HomeHandler{
 		viteService:  viteService,
 		wheelService: wheelService,
-	}, nil
+		logger:       logger,
+	}
 }
 
 func (h *HomeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -28,8 +31,14 @@ func (h *HomeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path != "/" {
+		components.ErrorPage404(h.viteService.Tags()).Render(r.Context(), w)
+		return
+	}
+
 	wheels, err := h.wheelService.ListWheels(r.Context())
 	if err != nil {
+		h.logger.Error("Failed to list wheels", zap.Error(err))
 		http.Error(w, "Failed to list wheels", http.StatusInternalServerError)
 		return
 	}
