@@ -23,7 +23,7 @@ var distFS embed.FS
 //go:embed all:frontend/img
 var imgFS embed.FS
 
-func startServer() {
+func startServer(dbPath string) {
 	// Logger
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -34,7 +34,7 @@ func startServer() {
 
 	// Database
 	dbConfig := db.DBConfig{
-		FilePath: "data.db",
+		FilePath: dbPath,
 	}
 	dbConnection := db.NewDBConnection(dbConfig)
 
@@ -73,15 +73,18 @@ func startServer() {
 	}
 }
 
+var startDBPath string
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the web server",
 	Run: func(cmd *cobra.Command, args []string) {
-		startServer()
+		startServer(startDBPath)
 	},
 }
 
 func main() {
+	startCmd.Flags().StringVar(&startDBPath, "db", "data.db", "path to the SQLite database file")
 	dbcmd.RootCmd.AddCommand(startCmd)
 
 	if err := dbcmd.RootCmd.Execute(); err != nil {
