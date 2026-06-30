@@ -16,6 +16,9 @@
 dist/
 tmp/
 
+# Secrets
+sops.secrets.yaml
+
 # Node
 node_modules/
 frontend/dist/

@@ -9,8 +9,7 @@ import (
 )
 
 var RootCmd = &cobra.Command{
-	Use:   "db",
-	Short: "Database management commands",
+	Short: "A Perfectly Normal Wheel Server with associated database management commands",
 }
 
 func openDB(path string) (*sql.DB, error) {

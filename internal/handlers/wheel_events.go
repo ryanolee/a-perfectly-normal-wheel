@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 	"go.uber.org/zap"
 )
@@ -122,7 +123,7 @@ func (s *WheelEventsHandler) renderCandidateRemoved(_ context.Context, e service
 }
 
 func (s *WheelEventsHandler) renderStatusChanged(ctx context.Context, e services.StatusChangedEvent) (string, string, error) {
-	if services.ParseWheelStatus(e.Status) == services.WheelStatusLocked {
+	if repository.ParseWheelStatus(e.Status) == repository.WheelStatusLocked {
 		return renderComponent(ctx, services.WheelStatusChangedEventType, components.WheelLockedNotice())
 	}
 

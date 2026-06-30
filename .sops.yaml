@@ -1,0 +1,9 @@
+keys:
+  server: &server CBB627B1EF016B88EF9E1EAC28B756F87AA868BC
+  ryan: &ryan 79A2BF13FBBC1680B3632355527A30F2116B415C
+
+creation_rules:
+  - key_groups:
+      - pgp:
+          - *server
+          - *ryan

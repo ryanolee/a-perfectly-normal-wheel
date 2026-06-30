@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 )
 
@@ -15,12 +16,12 @@ type (
 
 	WheelService interface {
 		CountWheels(context.Context) (int64, error)
-		ListWheels(context.Context) ([]services.Wheel, error)
-		GetWheelByID(context.Context, int64) (*services.Wheel, error)
-		SetWheelStatus(context.Context, int64, services.WheelStatus) error
+		ListWheels(context.Context) ([]repository.Wheel, error)
+		GetWheelByID(context.Context, int64) (*repository.Wheel, error)
+		SetWheelStatus(context.Context, int64, repository.WheelStatus) error
 		DeleteWheelByID(context.Context, int64) error
-		CreateWheel(context.Context, string, string) (*services.Wheel, error)
-		DeclareWinnerForWheel(context.Context, int64, *services.Candidate) error
+		CreateWheel(context.Context, string, string) (*repository.Wheel, error)
+		DeclareWinnerForWheel(context.Context, int64, *repository.Candidate) error
 	}
 
 	WheelEventsService interface {
@@ -29,11 +30,11 @@ type (
 	}
 
 	CandidateService interface {
-		ListCandidatesByWheel(context.Context, int64) ([]services.Candidate, error)
+		ListCandidatesByWheel(context.Context, int64) ([]repository.Candidate, error)
 		AddCandidateToWheel(context.Context, string, int64) error
-		CandidateInCandidateList(string, []services.Candidate) bool
+		CandidateInCandidateList(string, []repository.Candidate) bool
 		DeleteCandidateById(context.Context, int64, int64) error
-		GetRandomCandidateForWheel(context.Context, int64, int64) (*services.Candidate, error)
+		GetRandomCandidateForWheel(context.Context, int64, int64) (*repository.Candidate, error)
 	}
 
 	SessionService interface {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 	"go.uber.org/zap"
 )
@@ -100,7 +101,7 @@ func (h *WheelHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sessionId, _ := h.sessionService.GetSessionIdFromContext(r.Context())
 
-	var winner *services.Candidate
+	var winner *repository.Candidate
 	if wheel.WinnerID != nil {
 		winner = services.GetCandidateFromListById(*wheel.WinnerID, candidates)
 	}
@@ -116,10 +117,10 @@ func (h *WheelHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type WheelPageViewProps struct {
-	wheel                services.Wheel
-	candidates           []services.Candidate
+	wheel                repository.Wheel
+	candidates           []repository.Candidate
 	sessionId            string
-	winner               *services.Candidate
+	winner               *repository.Candidate
 	renderSubmissionForm bool
 	renderBackButton     bool
 }

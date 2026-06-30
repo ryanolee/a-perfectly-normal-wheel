@@ -2,43 +2,42 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
-	"github.com/ryanolee/a-perfectly-normal-wheel/internal/db"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 )
 
 type (
-	WheelQueries interface {
-		ListWheels(context.Context) ([]db.Wheel, error)
-		GetWheelByID(context.Context, int64) (db.Wheel, error)
-		SetWheelStatus(context.Context, db.SetWheelStatusParams) error
-		DeleteWheelByID(context.Context, int64) error
-		CreateWheel(context.Context, db.CreateWheelParams) (int64, error)
-		CountWheels(context.Context) (int64, error)
-		DeclareWinnerForWheel(context.Context, db.DeclareWinnerForWheelParams) error
+	WheelRepository interface {
+		List(context.Context) ([]repository.Wheel, error)
+		Get(context.Context, int64) (*repository.Wheel, error)
+		Count(context.Context) (int64, error)
+		Create(context.Context, string, string) (*repository.Wheel, error)
+		SetStatus(context.Context, int64, repository.WheelStatus) error
+		Delete(context.Context, int64) error
+		DeclareWinner(context.Context, int64, int64) error
 	}
 
 	WheelService struct {
-		dbQueries WheelQueries
-		events    *WheelEventsService
+		wheels WheelRepository
+		events *WheelEventsService
 	}
 )
 
-func NewWheelService(dbQueries WheelQueries, events *WheelEventsService) *WheelService {
+func NewWheelService(wheels WheelRepository, events *WheelEventsService) *WheelService {
 	return &WheelService{
-		dbQueries: dbQueries,
-		events:    events,
+		wheels: wheels,
+		events: events,
 	}
 }
 
-func (s *WheelService) DeclareWinnerForWheel(ctx context.Context, wheelID int64, randomCandidate *Candidate) error {
+func (s *WheelService) DeclareWinnerForWheel(ctx context.Context, wheelID int64, randomCandidate *repository.Candidate) error {
 	wheel, err := s.GetWheelByID(ctx, wheelID)
 	if err != nil {
 		return err
 	}
 
-	if wheel.Status == WheelStatusWinnerDeclared {
+	if wheel.Status == repository.WheelStatusWinnerDeclared {
 		return errors.New("cannot declare a winner for a wheel that has already declared a winner")
 	}
 
@@ -46,33 +45,15 @@ func (s *WheelService) DeclareWinnerForWheel(ctx context.Context, wheelID int64,
 		return errors.New("candidate does not belong to the specified wheel")
 	}
 
-	if err = s.dbQueries.DeclareWinnerForWheel(ctx, db.DeclareWinnerForWheelParams{
-		WinnerID: sql.NullInt64{
-			Int64: randomCandidate.ID,
-			Valid: true,
-		},
-		ID: wheelID,
-	}); err != nil {
+	if err = s.wheels.DeclareWinner(ctx, wheelID, randomCandidate.ID); err != nil {
 		return err
 	}
 
 	return s.events.PublishWinnerDeclaredEvent(wheelID, *randomCandidate)
 }
 
-func (s *WheelService) CreateWheel(ctx context.Context, name string, description string) (*Wheel, error) {
-	wheelID, err := s.dbQueries.CreateWheel(ctx, db.CreateWheelParams{
-		Name: name,
-		Description: sql.NullString{
-			String: description,
-			Valid:  description != "",
-		},
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	wheel, err := s.GetWheelByID(ctx, wheelID)
+func (s *WheelService) CreateWheel(ctx context.Context, name string, description string) (*repository.Wheel, error) {
+	wheel, err := s.wheels.Create(ctx, name, description)
 	if err != nil {
 		return nil, err
 	}
@@ -81,52 +62,32 @@ func (s *WheelService) CreateWheel(ctx context.Context, name string, description
 		return nil, err
 	}
 
-	return wheel, err
-
+	return wheel, nil
 }
 
-func (s *WheelService) ListWheels(ctx context.Context) ([]Wheel, error) {
-	dbWheels, err := s.dbQueries.ListWheels(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return wheelListFromDB(dbWheels), nil
+func (s *WheelService) ListWheels(ctx context.Context) ([]repository.Wheel, error) {
+	return s.wheels.List(ctx)
 }
 
-func (s *WheelService) GetWheelByID(ctx context.Context, id int64) (*Wheel, error) {
-	dbWheel, err := s.dbQueries.GetWheelByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	wheel := wheelFromDB(&dbWheel)
-	return &wheel, nil
+func (s *WheelService) GetWheelByID(ctx context.Context, id int64) (*repository.Wheel, error) {
+	return s.wheels.Get(ctx, id)
 }
 
 func (s *WheelService) CountWheels(ctx context.Context) (int64, error) {
-	count, err := s.dbQueries.CountWheels(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
+	return s.wheels.Count(ctx)
 }
 
-func (s *WheelService) SetWheelStatus(ctx context.Context, wheelID int64, status WheelStatus) error {
+func (s *WheelService) SetWheelStatus(ctx context.Context, wheelID int64, status repository.WheelStatus) error {
 	wheel, err := s.GetWheelByID(ctx, wheelID)
 	if err != nil {
 		return err
 	}
 
-	if wheel.Status == WheelStatusWinnerDeclared {
+	if wheel.Status == repository.WheelStatusWinnerDeclared {
 		return errors.New("cannot change status of a wheel that has already declared a winner")
 	}
 
-	if err = s.dbQueries.SetWheelStatus(ctx, db.SetWheelStatusParams{
-		Status: status.String(),
-		ID:     wheelID,
-	}); err != nil {
+	if err = s.wheels.SetStatus(ctx, wheelID, status); err != nil {
 		return err
 	}
 
@@ -134,76 +95,9 @@ func (s *WheelService) SetWheelStatus(ctx context.Context, wheelID int64, status
 }
 
 func (s *WheelService) DeleteWheelByID(ctx context.Context, wheelID int64) error {
-	err := s.dbQueries.DeleteWheelByID(ctx, wheelID)
-	if err != nil {
+	if err := s.wheels.Delete(ctx, wheelID); err != nil {
 		return err
 	}
 
 	return s.events.PublishWheelDeletedEvent(wheelID)
-}
-
-type WheelStatus int
-
-const (
-	WheelStatusActive WheelStatus = iota
-	WheelStatusLocked
-	WheelStatusWinnerDeclared
-	WheelStatusUnknown
-)
-
-func (s WheelStatus) String() string {
-	switch s {
-	case WheelStatusActive:
-		return "active"
-	case WheelStatusLocked:
-		return "locked"
-	case WheelStatusWinnerDeclared:
-		return "winner_declared"
-	default:
-		return "unknown"
-	}
-}
-
-func ParseWheelStatus(status string) WheelStatus {
-	switch status {
-	case "active":
-		return WheelStatusActive
-	case "locked":
-		return WheelStatusLocked
-	case "winner_declared":
-		return WheelStatusWinnerDeclared
-	default:
-		return WheelStatusUnknown
-	}
-}
-
-type Wheel struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	WinnerID    *int64
-	Status      WheelStatus
-}
-
-func wheelListFromDB(dbWheels []db.Wheel) []Wheel {
-	wheels := make([]Wheel, len(dbWheels))
-	for i, dbWheel := range dbWheels {
-		wheels[i] = wheelFromDB(&dbWheel)
-	}
-	return wheels
-}
-
-func wheelFromDB(w *db.Wheel) Wheel {
-	var winnerID *int64
-	if w.WinnerID.Valid {
-		winnerID = &w.WinnerID.Int64
-	}
-
-	return Wheel{
-		ID:          w.ID,
-		Name:        w.Name,
-		Description: w.Description.String,
-		WinnerID:    winnerID,
-		Status:      ParseWheelStatus(w.Status),
-	}
 }

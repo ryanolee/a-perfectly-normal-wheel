@@ -1,6 +1,10 @@
 package services
 
-import "context"
+import (
+	"context"
+
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
+)
 
 type (
 	AdminService struct {
@@ -9,8 +13,8 @@ type (
 	}
 
 	AdminWheelMetadata struct {
-		Wheel      Wheel
-		Candidates []Candidate
+		Wheel      repository.Wheel
+		Candidates []repository.Candidate
 	}
 )
 

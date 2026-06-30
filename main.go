@@ -7,10 +7,12 @@ import (
 	"net/http"
 
 	dbcmd "github.com/ryanolee/a-perfectly-normal-wheel/cmd/db"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/config"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/db"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/handlers"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/logging"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/middleware"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/server"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 	"github.com/spf13/cobra"
@@ -23,7 +25,7 @@ var distFS embed.FS
 //go:embed all:frontend/img
 var imgFS embed.FS
 
-func startServer(dbPath string) {
+func startServer(dbPath string, secretsPath string) {
 	// Logger
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -38,12 +40,22 @@ func startServer(dbPath string) {
 	}
 	dbConnection := db.NewDBConnection(dbConfig)
 
+	// Secrets
+	secrets, err := config.LoadSecretsFromSopsFile(secretsPath)
+	if err != nil {
+		logger.Fatal("failed to load secrets", zap.Error(err))
+	}
+
+	// Repositories
+	wheelRepo := repository.NewWheelRepository(dbConnection)
+	candidateRepo := repository.NewCandidateRepository(dbConnection)
+
 	// Services
 	viteService := services.NewViteService(&distFS, logger)
 	wheelEventsService := services.NewWheelEventsService(logger, watermillLogger)
-	wheelService := services.NewWheelService(dbConnection, wheelEventsService)
-	sessionService := services.NewSessionService("your-secret-key")
-	candidateService := services.NewCandidateService(dbConnection, wheelService, wheelEventsService, sessionService)
+	wheelService := services.NewWheelService(wheelRepo, wheelEventsService)
+	sessionService := services.NewSessionService(secrets.JwtSecret)
+	candidateService := services.NewCandidateService(candidateRepo, wheelService, wheelEventsService, sessionService)
 
 	// HTTP Handlers
 	homeHandler := handlers.NewHomeHandler(viteService, wheelService, logger)
@@ -65,7 +77,7 @@ func startServer(dbPath string) {
 	// Middleware
 	serverMux = middleware.LogRequests(serverMux, logger)
 	serverMux = middleware.SessionMiddleware(serverMux, sessionService, logger)
-	serverMux = middleware.BasicAuthMiddleware(serverMux, "admin", "password")
+	serverMux = middleware.BasicAuthMiddleware(serverMux, "ryanolee", secrets.AdminPassword)
 
 	log.Println("listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", serverMux); err != nil {
@@ -74,17 +86,19 @@ func startServer(dbPath string) {
 }
 
 var startDBPath string
+var startSecretsPath string
 
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the web server",
 	Run: func(cmd *cobra.Command, args []string) {
-		startServer(startDBPath)
+		startServer(startDBPath, startSecretsPath)
 	},
 }
 
 func main() {
 	startCmd.Flags().StringVar(&startDBPath, "db", "data.db", "path to the SQLite database file")
+	startCmd.Flags().StringVar(&startSecretsPath, "secrets", "config/secrets.yml", "path to the SOPS-encrypted secrets file")
 	dbcmd.RootCmd.AddCommand(startCmd)
 
 	if err := dbcmd.RootCmd.Execute(); err != nil {

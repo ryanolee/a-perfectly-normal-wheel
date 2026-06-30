@@ -2,10 +2,11 @@ package components
 
 import (
   "fmt"
+  "github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
   "github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 )
 
-templ Home(viteTags string, wheels []services.Wheel) {
+templ Home(viteTags string, wheels []repository.Wheel) {
   @PageLayout("Home", viteTags) {
     <h1 class="text-3xl font-bold text-white mb-2">Available Wheels</h1>
     <ul class="space-y-4" sse-connect="/api/wheel/events" sse-swap={services.WheelAddedEventType} hx-swap="beforeend">
@@ -24,7 +25,7 @@ templ Home(viteTags string, wheels []services.Wheel) {
   }
 }
 
-templ WheelCard(wheel services.Wheel) {
+templ WheelCard(wheel repository.Wheel) {
   <li sse-swap={fmt.Sprintf("%s:%d", services.WheelDeletedEventType, wheel.ID)} hx-swap="remove">
     <a href={ templ.SafeURL(fmt.Sprintf("/wheel/%d", wheel.ID)) } class="block bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-violet-600 hover:bg-gray-800 transition-all group">
       <h2 class="text-xl font-semibold text-white group-hover:text-violet-300 transition-colors mb-1">{ wheel.Name }</h2>

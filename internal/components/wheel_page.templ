@@ -2,10 +2,11 @@ package components
 
 import (
   "fmt"
+  "github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
   "github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 )
 
-templ CandidateListItem(candidate services.Candidate, currentUserId string) {
+templ CandidateListItem(candidate repository.Candidate, currentUserId string) {
   <li 
     class="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
     sse-swap={ fmt.Sprintf("CandidateRemovedFromWheelEvent:%d", candidate.ID) }
@@ -66,7 +67,7 @@ templ WheelStatusStub() {
   </div>  
 }
 
-templ CandidateList(candidates []services.Candidate, currentUserId string) {
+templ CandidateList(candidates []repository.Candidate, currentUserId string) {
   <h2 class="text-lg font-semibold text-gray-200 mb-4">
     Participants
   </h2>
@@ -85,7 +86,7 @@ templ CandidateList(candidates []services.Candidate, currentUserId string) {
   </ul>
 }
 
-templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Candidate, currentUserId string, winner *services.Candidate, renderSubmissionForm bool, renderBackButton bool) {
+templ WheelPage(viteTags string, wheel repository.Wheel, candidates []repository.Candidate, currentUserId string, winner *repository.Candidate, renderSubmissionForm bool, renderBackButton bool) {
   @PageLayout(wheel.Name, viteTags) {
     <div sse-connect={ templ.SafeURL(fmt.Sprintf("/api/wheel/%d/events", wheel.ID)) } sse-swap={fmt.Sprintf("%s:%d,%s", services.WheelDeletedEventType, wheel.ID, services.WinnerDeclaredEventType)} hx-swap="outerHTML">
       <div class="mb-8">
@@ -103,7 +104,7 @@ templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Can
 
         // Winner event spins the wheel in here; the spin reloads the page, which then lands on the declaration below.
         <div hx-swap="innerHTML">
-          if wheel.Status != services.WheelStatusActive {
+          if wheel.Status != repository.WheelStatusActive {
             @WheelLockedNotice()
           } else if renderSubmissionForm {
             @CandidateSubmissionForm(wheel.ID, "")
@@ -116,7 +117,7 @@ templ WheelPage(viteTags string, wheel services.Wheel, candidates []services.Can
   }
 }
 
-templ WinnerDeclaredNotice(winner services.Candidate) {
+templ WinnerDeclaredNotice(winner repository.Candidate) {
   <div class="flex flex-col items-center gap-6 rounded-2xl px-12 py-14 bg-gradient-to-br from-amber-500/15 to-yellow-500/15 border border-amber-400/60 shadow-2xl shadow-amber-500/20 w-full text-center">
     <svg class="w-20 h-20 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 4.5L12 4l3.5 5.5L21 5l-2 11H5zm0 3h14a1 1 0 010 2H5a1 1 0 010-2z"/></svg>
     <div>

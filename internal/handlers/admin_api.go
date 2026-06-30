@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 	"go.uber.org/zap"
 )
@@ -167,9 +168,9 @@ func (h *AdminApiHandler) SetWheelStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	status := services.ParseWheelStatus(r.PathValue("status"))
+	status := repository.ParseWheelStatus(r.PathValue("status"))
 
-	if status != services.WheelStatusActive && status != services.WheelStatusLocked {
+	if status != repository.WheelStatusActive && status != repository.WheelStatusLocked {
 		http.Error(w, "Cannot change to status", http.StatusBadRequest)
 		return
 	}
@@ -181,5 +182,5 @@ func (h *AdminApiHandler) SetWheelStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	components.WheelLockButton(wheelId, status == services.WheelStatusActive).Render(r.Context(), w)
+	components.WheelLockButton(wheelId, status == repository.WheelStatusActive).Render(r.Context(), w)
 }

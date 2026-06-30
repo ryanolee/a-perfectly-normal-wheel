@@ -9,6 +9,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"go.uber.org/zap"
 )
 
@@ -36,7 +37,7 @@ type (
 	}
 
 	NewCandidateAddedToWheelEvent struct {
-		Candidate Candidate `json:"candidate"`
+		Candidate repository.Candidate `json:"candidate"`
 	}
 
 	CandidateRemovedFromWheelEvent struct {
@@ -53,12 +54,12 @@ type (
 	}
 
 	WheelAddedEvent struct {
-		Wheel Wheel `json:"wheel"`
+		Wheel repository.Wheel `json:"wheel"`
 	}
 
 	WinnerDeclaredEvent struct {
-		WheelID int64     `json:"wheel_id"`
-		Winner  Candidate `json:"winner"`
+		WheelID int64                `json:"wheel_id"`
+		Winner  repository.Candidate `json:"winner"`
 	}
 )
 
@@ -71,7 +72,7 @@ func NewWheelEventsService(logger *zap.Logger, watermillLogger watermill.LoggerA
 	}
 }
 
-func (s *WheelEventsService) PublishNewCandidateAddedToWheelEvent(wheelId int64, candidate Candidate) error {
+func (s *WheelEventsService) PublishNewCandidateAddedToWheelEvent(wheelId int64, candidate repository.Candidate) error {
 	msg, err := eventToMessage(NewCandidateAddedToWheelEventType, NewCandidateAddedToWheelEvent{
 		Candidate: candidate,
 	})
@@ -95,7 +96,7 @@ func (s *WheelEventsService) PublishCandidateRemovedFromWheelEvent(wheelId int64
 	return s.publishWheelEvent(wheelId, CandidateRemovedFromWheelEventType, msg)
 }
 
-func (s *WheelEventsService) PublishWheelStatusChangedEvent(wheelId int64, status WheelStatus) error {
+func (s *WheelEventsService) PublishWheelStatusChangedEvent(wheelId int64, status repository.WheelStatus) error {
 	msg, err := eventToMessage(WheelStatusChangedEventType, StatusChangedEvent{
 		WheelID: wheelId,
 		Status:  status.String(),
@@ -108,7 +109,7 @@ func (s *WheelEventsService) PublishWheelStatusChangedEvent(wheelId int64, statu
 	return s.publishWheelEvent(wheelId, WheelStatusChangedEventType, msg)
 }
 
-func (s *WheelEventsService) PublishWinnerDeclaredEvent(wheelId int64, winner Candidate) error {
+func (s *WheelEventsService) PublishWinnerDeclaredEvent(wheelId int64, winner repository.Candidate) error {
 	msg, err := eventToMessage(WinnerDeclaredEventType, WinnerDeclaredEvent{
 		WheelID: wheelId,
 		Winner:  winner,
@@ -137,7 +138,7 @@ func (s *WheelEventsService) PublishWheelDeletedEvent(wheelId int64) error {
 	return s.publishWheelEvent(wheelId, WheelDeletedEventType, msg)
 }
 
-func (s *WheelEventsService) PublishWheelAddedEvent(wheel Wheel) error {
+func (s *WheelEventsService) PublishWheelAddedEvent(wheel repository.Wheel) error {
 	msg, err := eventToMessage(WheelAddedEventType, WheelAddedEvent{
 		Wheel: wheel,
 	})

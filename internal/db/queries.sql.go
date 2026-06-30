@@ -10,21 +10,6 @@ import (
 	"database/sql"
 )
 
-const addCandidateToWheel = `-- name: AddCandidateToWheel :exec
-INSERT INTO candidates (username, wheel_id, creator_id) VALUES (?, ?, ?)
-`
-
-type AddCandidateToWheelParams struct {
-	Username  string
-	WheelID   int64
-	CreatorID string
-}
-
-func (q *Queries) AddCandidateToWheel(ctx context.Context, arg AddCandidateToWheelParams) error {
-	_, err := q.db.ExecContext(ctx, addCandidateToWheel, arg.Username, arg.WheelID, arg.CreatorID)
-	return err
-}
-
 const countWheels = `-- name: CountWheels :one
 SELECT COUNT(*) FROM wheels
 `
@@ -34,6 +19,21 @@ func (q *Queries) CountWheels(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createCandidate = `-- name: CreateCandidate :exec
+INSERT INTO candidates (username, wheel_id, creator_id) VALUES (?, ?, ?)
+`
+
+type CreateCandidateParams struct {
+	Username  string
+	WheelID   int64
+	CreatorID string
+}
+
+func (q *Queries) CreateCandidate(ctx context.Context, arg CreateCandidateParams) error {
+	_, err := q.db.ExecContext(ctx, createCandidate, arg.Username, arg.WheelID, arg.CreatorID)
+	return err
 }
 
 const createWheel = `-- name: CreateWheel :execlastid
@@ -67,17 +67,17 @@ func (q *Queries) DeclareWinnerForWheel(ctx context.Context, arg DeclareWinnerFo
 	return err
 }
 
-const deleteCandidateById = `-- name: DeleteCandidateById :exec
+const deleteCandidateByID = `-- name: DeleteCandidateByID :exec
 DELETE FROM candidates WHERE id = ? AND wheel_id = ?
 `
 
-type DeleteCandidateByIdParams struct {
+type DeleteCandidateByIDParams struct {
 	ID      int64
 	WheelID int64
 }
 
-func (q *Queries) DeleteCandidateById(ctx context.Context, arg DeleteCandidateByIdParams) error {
-	_, err := q.db.ExecContext(ctx, deleteCandidateById, arg.ID, arg.WheelID)
+func (q *Queries) DeleteCandidateByID(ctx context.Context, arg DeleteCandidateByIDParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCandidateByID, arg.ID, arg.WheelID)
 	return err
 }
 
@@ -90,17 +90,17 @@ func (q *Queries) DeleteWheelByID(ctx context.Context, id int64) error {
 	return err
 }
 
-const getCandidateByCreatorIdAndWheelId = `-- name: GetCandidateByCreatorIdAndWheelId :one
+const getCandidateByCreatorIDAndWheelID = `-- name: GetCandidateByCreatorIDAndWheelID :one
 SELECT id, username, wheel_id, creator_id, created_at FROM candidates WHERE creator_id = ? AND wheel_id = ?
 `
 
-type GetCandidateByCreatorIdAndWheelIdParams struct {
+type GetCandidateByCreatorIDAndWheelIDParams struct {
 	CreatorID string
 	WheelID   int64
 }
 
-func (q *Queries) GetCandidateByCreatorIdAndWheelId(ctx context.Context, arg GetCandidateByCreatorIdAndWheelIdParams) (Candidate, error) {
-	row := q.db.QueryRowContext(ctx, getCandidateByCreatorIdAndWheelId, arg.CreatorID, arg.WheelID)
+func (q *Queries) GetCandidateByCreatorIDAndWheelID(ctx context.Context, arg GetCandidateByCreatorIDAndWheelIDParams) (Candidate, error) {
+	row := q.db.QueryRowContext(ctx, getCandidateByCreatorIDAndWheelID, arg.CreatorID, arg.WheelID)
 	var i Candidate
 	err := row.Scan(
 		&i.ID,
@@ -112,17 +112,17 @@ func (q *Queries) GetCandidateByCreatorIdAndWheelId(ctx context.Context, arg Get
 	return i, err
 }
 
-const getCandidateById = `-- name: GetCandidateById :one
+const getCandidateByID = `-- name: GetCandidateByID :one
 SELECT id, username, wheel_id, creator_id, created_at FROM candidates WHERE id = ? AND wheel_id = ?
 `
 
-type GetCandidateByIdParams struct {
+type GetCandidateByIDParams struct {
 	ID      int64
 	WheelID int64
 }
 
-func (q *Queries) GetCandidateById(ctx context.Context, arg GetCandidateByIdParams) (Candidate, error) {
-	row := q.db.QueryRowContext(ctx, getCandidateById, arg.ID, arg.WheelID)
+func (q *Queries) GetCandidateByID(ctx context.Context, arg GetCandidateByIDParams) (Candidate, error) {
+	row := q.db.QueryRowContext(ctx, getCandidateByID, arg.ID, arg.WheelID)
 	var i Candidate
 	err := row.Scan(
 		&i.ID,
@@ -134,17 +134,17 @@ func (q *Queries) GetCandidateById(ctx context.Context, arg GetCandidateByIdPara
 	return i, err
 }
 
-const getCandidateBySessionIdAndWheelId = `-- name: GetCandidateBySessionIdAndWheelId :one
+const getCandidateBySessionIDAndWheelID = `-- name: GetCandidateBySessionIDAndWheelID :one
 SELECT id, username, wheel_id, creator_id, created_at FROM candidates WHERE creator_id = ? AND wheel_id = ?
 `
 
-type GetCandidateBySessionIdAndWheelIdParams struct {
+type GetCandidateBySessionIDAndWheelIDParams struct {
 	CreatorID string
 	WheelID   int64
 }
 
-func (q *Queries) GetCandidateBySessionIdAndWheelId(ctx context.Context, arg GetCandidateBySessionIdAndWheelIdParams) (Candidate, error) {
-	row := q.db.QueryRowContext(ctx, getCandidateBySessionIdAndWheelId, arg.CreatorID, arg.WheelID)
+func (q *Queries) GetCandidateBySessionIDAndWheelID(ctx context.Context, arg GetCandidateBySessionIDAndWheelIDParams) (Candidate, error) {
+	row := q.db.QueryRowContext(ctx, getCandidateBySessionIDAndWheelID, arg.CreatorID, arg.WheelID)
 	var i Candidate
 	err := row.Scan(
 		&i.ID,

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 )
 
@@ -48,7 +49,7 @@ func (h *AdminWheelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var winningCandidate *services.Candidate
+	var winningCandidate *repository.Candidate
 	if wheel.WinnerID != nil {
 		winningCandidate = services.GetCandidateFromListById(*wheel.WinnerID, candidates)
 	}
@@ -61,9 +62,9 @@ func (h *AdminWheelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type AdminWheelViewProps struct {
-	wheel            services.Wheel
-	candidates       []services.Candidate
-	winningCandidate *services.Candidate
+	wheel            repository.Wheel
+	candidates       []repository.Candidate
+	winningCandidate *repository.Candidate
 }
 
 func (h *AdminWheelHandler) View(w http.ResponseWriter, r *http.Request, props AdminWheelViewProps) {

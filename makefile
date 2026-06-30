@@ -18,3 +18,5 @@ db_migrate:
 db_seed:
 	go run ./cmd/db seed --db data.db
 
+edit-secrets:
+	sops edit config/secrets.yml

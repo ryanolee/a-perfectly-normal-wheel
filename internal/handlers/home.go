@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/components"
-	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
 	"go.uber.org/zap"
 )
 
@@ -54,7 +54,7 @@ func (h *HomeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type HomeViewProps struct {
-	wheels []services.Wheel
+	wheels []repository.Wheel
 }
 
 func (h *HomeHandler) View(w http.ResponseWriter, r *http.Request, props HomeViewProps) {

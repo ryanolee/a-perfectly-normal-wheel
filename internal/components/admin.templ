@@ -2,11 +2,12 @@ package components
 
 import (
     "fmt"
+    "github.com/ryanolee/a-perfectly-normal-wheel/internal/repository"
     "github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 )
 
 
-templ AdminDashboard(viteTags string, wheels []services.Wheel) {
+templ AdminDashboard(viteTags string, wheels []repository.Wheel) {
   @AdminLayout("Admin", viteTags) {
     <ul class="space-y-4" id="wheel-list" sse-connect="/api/wheel/events"  hx-swap="beforeend">
       for _, wheel := range wheels {
@@ -20,7 +21,7 @@ templ AdminDashboard(viteTags string, wheels []services.Wheel) {
   }
 }
 
-templ AdminWheelPage(viteTags string, wheel services.Wheel, candidates []services.Candidate, winningCandidate *services.Candidate) {
+templ AdminWheelPage(viteTags string, wheel repository.Wheel, candidates []repository.Candidate, winningCandidate *repository.Candidate) {
   @AdminLayout(wheel.Name, viteTags) {
     <div class="mb-8">
       <a href="/admin" class="text-sm text-red-400 hover:text-red-300 transition-colors mb-4 inline-block">← Back to admin dashboard</a>
@@ -36,7 +37,7 @@ templ AdminWheelPage(viteTags string, wheel services.Wheel, candidates []service
 }
 
 
-templ AdminWheelCard(wheel services.Wheel) {
+templ AdminWheelCard(wheel repository.Wheel) {
   <li>
     <a href={ templ.SafeURL(fmt.Sprintf("/admin/wheel/%d", wheel.ID)) } class="block bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-red-600 hover:bg-gray-800 transition-all group">
       <h2 class="text-xl font-semibold text-white group-hover:text-red-300 transition-colors mb-1">{ wheel.Name }</h2>
@@ -46,7 +47,7 @@ templ AdminWheelCard(wheel services.Wheel) {
 }
 
 
-templ AdminWheelWinnerDeclaration(wheelId int64, candidate services.Candidate) {
+templ AdminWheelWinnerDeclaration(wheelId int64, candidate repository.Candidate) {
   <div class="relative bg-gray-900 border border-yellow-500 rounded-xl p-6 space-y-3 text-center">
     <div class="absolute top-2 right-2">
       @WheelDeleteButton(wheelId)
@@ -63,7 +64,7 @@ templ AdminWheelWinnerDeclaration(wheelId int64, candidate services.Candidate) {
 }
 
 
-templ WheelAdminForm(wheel services.Wheel, candidates []services.Candidate) {
+templ WheelAdminForm(wheel repository.Wheel, candidates []repository.Candidate) {
   <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 min-w-0">
@@ -73,7 +74,7 @@ templ WheelAdminForm(wheel services.Wheel, candidates []services.Candidate) {
         }
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        @WheelLockButton(wheel.ID, wheel.Status == services.WheelStatusActive)
+        @WheelLockButton(wheel.ID, wheel.Status == repository.WheelStatusActive)
         @WheelDeleteButton(wheel.ID)
       </div>
     </div>
@@ -180,7 +181,7 @@ templ WheelDeleteButton(wheelId int64) {
   </button>
 }
 
-templ CandidatePill(wheelId int64, candidate services.Candidate) {
+templ CandidatePill(wheelId int64, candidate repository.Candidate) {
   <span class="inline-flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-full pl-3 pr-1.5 py-1 text-sm text-gray-200" id={ fmt.Sprintf("candidatePill%d", candidate.ID) }>
     { candidate.Username }
     <button
