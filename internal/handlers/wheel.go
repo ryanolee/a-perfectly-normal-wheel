@@ -24,7 +24,7 @@ type (
 	}
 )
 
-func NewWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService, sessionService SessionService, logger *zap.Logger) http.Handler {
+func NewWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService, sessionService SessionService, logger *zap.Logger) *WheelHandler {
 	return &WheelHandler{
 		viteService:      viteService,
 		wheelService:     wheelService,
@@ -33,6 +33,8 @@ func NewWheelHandler(viteService ViteService, wheelService WheelService, candida
 		logger:           logger,
 	}
 }
+
+func (h *WheelHandler) Pattern() string { return "/wheel/{id}" }
 
 func (h *WheelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {

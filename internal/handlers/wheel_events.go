@@ -23,7 +23,7 @@ type (
 	}
 )
 
-func NewWheelEventsHandler(wheelService WheelService, wheelEventsService WheelEventsService, sessionService SessionService, candidateService CandidateService, logger *zap.Logger) http.Handler {
+func NewWheelEventsHandler(wheelService WheelService, wheelEventsService WheelEventsService, sessionService SessionService, candidateService CandidateService, logger *zap.Logger) *WheelEventsHandler {
 	mux := http.NewServeMux()
 	we := &WheelEventsHandler{
 		wheelService:       wheelService,
@@ -38,6 +38,8 @@ func NewWheelEventsHandler(wheelService WheelService, wheelEventsService WheelEv
 	we.mux.HandleFunc("GET /api/wheel/events", we.HandleGlobalWheelEvents)
 	return we
 }
+
+func (h *WheelEventsHandler) Pattern() string { return "/api/wheel/{path...}" }
 
 func (h *WheelEventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)

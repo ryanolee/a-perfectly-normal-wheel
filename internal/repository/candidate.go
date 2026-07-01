@@ -20,7 +20,7 @@ type CandidateRepository struct {
 	db candidateStore
 }
 
-func NewCandidateRepository(db candidateStore) *CandidateRepository {
+func NewCandidateRepository(db *db.Queries) *CandidateRepository {
 	return &CandidateRepository{db: db}
 }
 

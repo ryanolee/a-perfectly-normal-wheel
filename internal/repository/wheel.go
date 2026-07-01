@@ -21,7 +21,7 @@ type WheelRepository struct {
 	db wheelStore
 }
 
-func NewWheelRepository(db wheelStore) *WheelRepository {
+func NewWheelRepository(db *db.Queries) *WheelRepository {
 	return &WheelRepository{db: db}
 }
 

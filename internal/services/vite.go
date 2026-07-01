@@ -9,10 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type ViteService struct {
-	tags string
-	fs   fs.FS
-}
+type (
+	ViteFS interface {
+		embed.FS
+	}
+	ViteService struct {
+		tags string
+		fs   fs.FS
+	}
+)
 
 func NewViteService(distFs *embed.FS, logger *zap.Logger) *ViteService {
 	dist, err := fs.Sub(distFs, "frontend/dist")

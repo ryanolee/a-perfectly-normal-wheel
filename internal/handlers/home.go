@@ -17,13 +17,15 @@ type (
 	}
 )
 
-func NewHomeHandler(viteService ViteService, wheelService WheelService, logger *zap.Logger) http.Handler {
+func NewHomeHandler(viteService ViteService, wheelService WheelService, logger *zap.Logger) *HomeHandler {
 	return &HomeHandler{
 		viteService:  viteService,
 		wheelService: wheelService,
 		logger:       logger,
 	}
 }
+
+func (h *HomeHandler) Pattern() string { return "/" }
 
 func (h *HomeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

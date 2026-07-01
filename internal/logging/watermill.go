@@ -5,14 +5,14 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ watermill.LoggerAdapter = (*ZapLoggerAdapter)(nil)
+var _ watermill.LoggerAdapter = (*ZapWatermillLoggerAdapter)(nil)
 
-type ZapLoggerAdapter struct {
+type ZapWatermillLoggerAdapter struct {
 	logger *zap.Logger
 }
 
-func NewZapLoggerAdapter(logger *zap.Logger) *ZapLoggerAdapter {
-	return &ZapLoggerAdapter{logger: logger}
+func NewZapWatermillLoggerAdapter(logger *zap.Logger) *ZapWatermillLoggerAdapter {
+	return &ZapWatermillLoggerAdapter{logger: logger}
 }
 
 func zapFields(fields watermill.LogFields) []zap.Field {
@@ -23,22 +23,22 @@ func zapFields(fields watermill.LogFields) []zap.Field {
 	return zapFields
 }
 
-func (z *ZapLoggerAdapter) Error(msg string, err error, fields watermill.LogFields) {
+func (z *ZapWatermillLoggerAdapter) Error(msg string, err error, fields watermill.LogFields) {
 	z.logger.Error(msg, append(zapFields(fields), zap.Error(err))...)
 }
 
-func (z *ZapLoggerAdapter) Info(msg string, fields watermill.LogFields) {
+func (z *ZapWatermillLoggerAdapter) Info(msg string, fields watermill.LogFields) {
 	z.logger.Info(msg, zapFields(fields)...)
 }
 
-func (z *ZapLoggerAdapter) Debug(msg string, fields watermill.LogFields) {
+func (z *ZapWatermillLoggerAdapter) Debug(msg string, fields watermill.LogFields) {
 	z.logger.Debug(msg, zapFields(fields)...)
 }
 
-func (z *ZapLoggerAdapter) Trace(msg string, fields watermill.LogFields) {
+func (z *ZapWatermillLoggerAdapter) Trace(msg string, fields watermill.LogFields) {
 	z.logger.Debug(msg, zapFields(fields)...)
 }
 
-func (z *ZapLoggerAdapter) With(fields watermill.LogFields) watermill.LoggerAdapter {
-	return &ZapLoggerAdapter{logger: z.logger.With(zapFields(fields)...)}
+func (z *ZapWatermillLoggerAdapter) With(fields watermill.LogFields) watermill.LoggerAdapter {
+	return &ZapWatermillLoggerAdapter{logger: z.logger.With(zapFields(fields)...)}
 }

@@ -13,12 +13,14 @@ type (
 	}
 )
 
-func NewAdminHandler(viteService ViteService, wheelService WheelService) http.Handler {
+func NewAdminHandler(viteService ViteService, wheelService WheelService) *AdminHandler {
 	return &AdminHandler{
 		viteService:  viteService,
 		wheelService: wheelService,
 	}
 }
+
+func (h *AdminHandler) Pattern() string { return "GET /admin" }
 
 func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wheels, err := h.wheelService.ListWheels(r.Context())

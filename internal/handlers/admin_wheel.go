@@ -17,13 +17,15 @@ type (
 	}
 )
 
-func NewAdminWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService) http.Handler {
+func NewAdminWheelHandler(viteService ViteService, wheelService WheelService, candidateService CandidateService) *AdminWheelHandler {
 	return &AdminWheelHandler{
 		viteService:      viteService,
 		wheelService:     wheelService,
 		candidateService: candidateService,
 	}
 }
+
+func (h *AdminWheelHandler) Pattern() string { return "GET /admin/wheel/{id}" }
 
 func (h *AdminWheelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

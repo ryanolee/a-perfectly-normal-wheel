@@ -2,9 +2,10 @@ package main
 
 import (
 	"embed"
-	"io/fs"
 	"log"
 	"net/http"
+
+	"github.com/ThreeDotsLabs/watermill"
 
 	dbcmd "github.com/ryanolee/a-perfectly-normal-wheel/cmd/db"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/config"
@@ -16,6 +17,7 @@ import (
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/server"
 	"github.com/ryanolee/a-perfectly-normal-wheel/internal/services"
 	"github.com/spf13/cobra"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
@@ -26,63 +28,70 @@ var distFS embed.FS
 var imgFS embed.FS
 
 func startServer(dbPath string, secretsPath string) {
-	// Logger
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("failed to create logger: %v", err)
-	}
 
-	watermillLogger := logging.NewZapLoggerAdapter(logger)
+	fx.New(
+		// Secrets
+		fx.Provide(func() (*config.Secrets, error) {
+			return config.LoadSecretsFromSopsFile(secretsPath)
+		}),
 
-	// Database
-	dbConfig := db.DBConfig{
-		FilePath: dbPath,
-	}
-	dbConnection := db.NewDBConnection(dbConfig)
+		// Logging
+		fx.Provide(zap.NewProduction),
+		//fx.WithLogger(func(logger *zap.Logger) fxevent.Logger {
+		//	return &fxevent.ZapLogger{Logger: logger}
+		//}),
+		fx.Provide(fx.Annotate(logging.NewZapWatermillLoggerAdapter, fx.As(new(watermill.LoggerAdapter)))),
 
-	// Secrets
-	secrets, err := config.LoadSecretsFromSopsFile(secretsPath)
-	if err != nil {
-		logger.Fatal("failed to load secrets", zap.Error(err))
-	}
+		// Embedded Filesystems
+		fx.Provide(fx.Annotate(func() *embed.FS { return &distFS }, fx.ResultTags(`name:"dist"`))),
+		fx.Provide(fx.Annotate(func() *embed.FS { return &imgFS }, fx.ResultTags(`name:"img"`))),
 
-	// Repositories
-	wheelRepo := repository.NewWheelRepository(dbConnection)
-	candidateRepo := repository.NewCandidateRepository(dbConnection)
+		// Database
+		fx.Supply(db.DBConfig{
+			FilePath: dbPath,
+		}),
+		fx.Provide(db.NewDBConnection),
 
-	// Services
-	viteService := services.NewViteService(&distFS, logger)
-	wheelEventsService := services.NewWheelEventsService(logger, watermillLogger)
-	wheelService := services.NewWheelService(wheelRepo, wheelEventsService)
-	sessionService := services.NewSessionService(secrets.JwtSecret)
-	candidateService := services.NewCandidateService(candidateRepo, wheelService, wheelEventsService, sessionService)
+		// Repositories
+		fx.Provide(fx.Annotate(repository.NewWheelRepository, fx.As(new(services.WheelRepository)))),
+		fx.Provide(fx.Annotate(repository.NewCandidateRepository, fx.As(new(services.CandidateRepository)))),
 
-	// HTTP Handlers
-	homeHandler := handlers.NewHomeHandler(viteService, wheelService, logger)
-	viteHandler := handlers.NewViteHandler(viteService)
-	imgFs, err := fs.Sub(&imgFS, "frontend")
-	if err != nil {
-		log.Fatalf("failed to sub img fs: %v", err)
-	}
-	imgHandler := http.FileServer(http.FS(imgFs))
-	wheelHandler := handlers.NewWheelHandler(viteService, wheelService, candidateService, sessionService, logger)
-	wheelEventsHandler := handlers.NewWheelEventsHandler(wheelService, wheelEventsService, sessionService, candidateService, logger)
-	adminHandler := handlers.NewAdminHandler(viteService, wheelService)
-	adminWheelHandler := handlers.NewAdminWheelHandler(viteService, wheelService, candidateService)
-	adminApiHandler := handlers.NewAdminApiHandler(wheelService, candidateService, wheelEventsService, logger)
+		// Services
+		fx.Provide(fx.Annotate(services.NewViteService, fx.ParamTags(`name:"dist"`), fx.As(new(handlers.ViteService)))),
+		fx.Provide(fx.Annotate(services.NewWheelEventsService, fx.As(fx.Self()), fx.As(new(handlers.WheelEventsService)))),
+		fx.Provide(fx.Annotate(services.NewWheelService, fx.As(fx.Self()), fx.As(new(handlers.WheelService)))),
+		fx.Provide(fx.Annotate(services.NewSessionService, fx.As(fx.Self()), fx.As(new(handlers.SessionService)))),
+		fx.Provide(fx.Annotate(services.NewCandidateService, fx.As(fx.Self()), fx.As(new(handlers.CandidateService)))),
 
-	// Server
-	serverMux := server.NewServerMux(logger, homeHandler, viteHandler, imgHandler, wheelHandler, wheelEventsHandler, adminHandler, adminWheelHandler, adminApiHandler)
+		// HTTP Handlers
+		server.AsRoute(handlers.NewHomeHandler),
+		server.AsRoute(handlers.NewViteHandler),
+		server.AsRoute(handlers.NewWheelHandler),
+		server.AsRoute(handlers.NewWheelEventsHandler),
+		server.AsRoute(handlers.NewAdminHandler),
+		server.AsRoute(handlers.NewAdminWheelHandler),
+		server.AsRoute(handlers.NewAdminApiHandler),
+		server.AsRoute(handlers.NewImageHandler, fx.ParamTags(`name:"img"`)),
 
-	// Middleware
-	serverMux = middleware.LogRequests(serverMux, logger)
-	serverMux = middleware.SessionMiddleware(serverMux, sessionService, logger)
-	serverMux = middleware.BasicAuthMiddleware(serverMux, "ryanolee", secrets.AdminPassword)
+		// Middleware
+		fx.Provide(func(logger *zap.Logger, session *services.SessionService, secrets *config.Secrets) []server.Middleware {
+			return []server.Middleware{
+				func(next http.Handler) http.Handler {
+					return middleware.SessionMiddleware(next, session, logger)
+				},
+				func(next http.Handler) http.Handler {
+					return middleware.BasicAuthMiddleware(next, "admin", secrets.AdminPassword)
+				},
+				func(next http.Handler) http.Handler {
+					return middleware.LogRequests(next, logger)
+				},
+			}
+		}),
 
-	log.Println("listening on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", serverMux); err != nil {
-		logger.Fatal("failed to start server", zap.Error(err))
-	}
+		// Server
+		fx.Provide(fx.Annotate(server.NewServerMux, fx.ParamTags(`group:"routes"`))),
+		fx.Invoke(server.StartServer),
+	).Run()
 }
 
 var startDBPath string

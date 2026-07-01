@@ -7,14 +7,14 @@ import (
 )
 
 type (
-	secrets struct {
+	Secrets struct {
 		AdminPassword string `yaml:"admin_password"`
 		JwtSecret     string `yaml:"jwt_secret"`
 	}
 )
 
-func LoadSecretsFromSopsFile(sopsSecretFilePath string) (*secrets, error) {
-	var secrets secrets
+func LoadSecretsFromSopsFile(sopsSecretFilePath string) (*Secrets, error) {
+	var secrets Secrets
 	config, err := decrypt.File(sopsSecretFilePath, "yaml")
 	if err != nil {
 		return nil, err

@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func NewAdminApiHandler(wheelService WheelService, candidateService CandidateService, wheelEventsService WheelEventsService, logger *zap.Logger) http.Handler {
+func NewAdminApiHandler(wheelService WheelService, candidateService CandidateService, wheelEventsService WheelEventsService, logger *zap.Logger) *AdminApiHandler {
 	h := &AdminApiHandler{
 		wheelService:       wheelService,
 		wheelEventsService: wheelEventsService,
@@ -47,6 +47,8 @@ func parsePathInt(w http.ResponseWriter, r *http.Request, key string, errMsg str
 	}
 	return id, true
 }
+
+func (h *AdminApiHandler) Pattern() string { return "/admin/api/{path...}" }
 
 func (h *AdminApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)

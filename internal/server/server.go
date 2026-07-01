@@ -1,32 +1,57 @@
 package server
 
 import (
+	"context"
+	"net"
 	"net/http"
 
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
-func NewServerMux(
-	logger *zap.Logger,
-	homeHandler http.Handler,
-	viteHandler http.Handler,
-	imgHandler http.Handler,
-	wheelHandler http.Handler,
-	wheelEventsHandler http.Handler,
-	adminHandler http.Handler,
-	adminWheelHandler http.Handler,
-	adminApiHandler http.Handler,
-) http.Handler {
+type Route interface {
+	http.Handler
+	Pattern() string
+}
+
+type Middleware func(http.Handler) http.Handler
+
+func NewServerMux(routes []Route, middlewares []Middleware) http.Handler {
 	mux := http.NewServeMux()
+	for _, r := range routes {
+		mux.Handle(r.Pattern(), r)
+	}
 
-	mux.Handle("/assets/", viteHandler)
-	mux.Handle("/img/", imgHandler)
-	mux.Handle("/wheel/{id}", wheelHandler)
-	mux.Handle("/api/wheel/{path...}", wheelEventsHandler)
-	mux.Handle("/admin", adminHandler)
-	mux.Handle("/admin/wheel/{id}", adminWheelHandler)
-	mux.Handle("/admin/api/{path...}", adminApiHandler)
-	mux.Handle("/", homeHandler)
+	var handler http.Handler = mux
+	for _, mw := range middlewares {
+		handler = mw(handler)
+	}
+	return handler
+}
 
-	return mux
+func StartServer(lc fx.Lifecycle, handler http.Handler, logger *zap.Logger) {
+	srv := &http.Server{Addr: ":8080", Handler: handler}
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			ln, err := net.Listen("tcp", srv.Addr)
+			if err != nil {
+				return err
+			}
+			logger.Info("Starting server", zap.String("addr", srv.Addr))
+			go func() {
+				if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+					logger.Error("Server failed", zap.Error(err))
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			return srv.Shutdown(ctx)
+		},
+	})
+}
+
+func AsRoute(handler interface{}, annotations ...fx.Annotation) fx.Option {
+	annotations = append(annotations, fx.As(new(Route)), fx.ResultTags(`group:"routes"`))
+	return fx.Provide(fx.Annotate(handler, annotations...))
 }

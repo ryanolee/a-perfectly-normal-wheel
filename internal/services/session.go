@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/ryanolee/a-perfectly-normal-wheel/internal/config"
 )
 
 type (
@@ -26,9 +27,9 @@ const (
 //	SetSessionId(w http.ResponseWriter, r *http.Request, sessionId string) error
 //}
 
-func NewSessionService(signingKey string) *SessionService {
+func NewSessionService(secrets *config.Secrets) *SessionService {
 	return &SessionService{
-		signingKey: []byte(signingKey),
+		signingKey: []byte(secrets.JwtSecret),
 	}
 }
 
